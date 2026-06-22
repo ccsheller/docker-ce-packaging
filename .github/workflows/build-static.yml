@@ -15,6 +15,14 @@ on:
           - 'false'
           - 'true'
         default: 'false'
+      debug:
+        description: Build debug binaries with Go optimizations disabled
+        required: true
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+        default: 'false'
 
 permissions:
   contents: write
@@ -43,6 +51,7 @@ jobs:
             --build-arg DOCKER_VERSION=${{ inputs.docker_version }} \
             --build-arg DOCKER_GITCOMMIT=f8215cc266744ef195a50a70d427c345da2acdbb \
             --build-arg TINI_VERSION=v0.19.0 \
+            --build-arg DEBUG=${{ inputs.debug == 'true' && '1' || '0' }} \
             --output type=local,dest=dist \
             -f binaries/Dockerfile \
             .
@@ -52,12 +61,14 @@ jobs:
           set -eux
           version="${{ inputs.docker_version }}"
           version="${version#v}"
-          test -f "dist/docker-${version}.tgz"
-          test -f "dist/docker-${version}.tgz.md5"
+          suffix=""
+          if [ "${{ inputs.debug }}" = "true" ]; then suffix="-debug"; fi
+          test -f "dist/docker-${version}${suffix}.tgz"
+          test -f "dist/docker-${version}${suffix}.tgz.md5"
           cd dist
-          md5sum -c "docker-${version}.tgz.md5"
+          md5sum -c "docker-${version}${suffix}.tgz.md5"
           mkdir check
-          tar xzf "docker-${version}.tgz" -C check
+          tar xzf "docker-${version}${suffix}.tgz" -C check
           test -x check/docker/docker
           test -x check/docker/dockerd
           test -x check/docker/containerd
@@ -77,7 +88,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: docker-static-loong64-${{ inputs.docker_version }}
+          name: docker-static-loong64-${{ inputs.docker_version }}-debug-${{ inputs.debug }}
           path: |
             dist/docker-*.tgz
             dist/docker-*.tgz.md5
