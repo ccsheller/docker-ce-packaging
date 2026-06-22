@@ -1,4 +1,4 @@
-ARG GO_VERSION=1.24.8
+ARG GO_VERSION=1.24.9
 ARG COMPOSE_VERSION=v2.40.3
 
 FROM ghcr.io/loong64/golang:${GO_VERSION}-trixie AS builder
