@@ -34,7 +34,10 @@ RUN set -ex; \
 WORKDIR /go/src/github.com/opencontainers
 RUN set -ex; \
     mkdir -p runc; \
-    wget -qO- https://github.com/opencontainers/runc/archive/refs/tags/${RUNC_VERSION}.tar.gz | tar -xz --strip-components=1 -C runc
+    wget -O /tmp/runc.tar.gz https://github.com/opencontainers/runc/archive/refs/tags/${RUNC_VERSION}.tar.gz; \
+    tar -tzf /tmp/runc.tar.gz >/dev/null; \
+    tar -xzf /tmp/runc.tar.gz --strip-components=1 -C runc; \
+    rm -f /tmp/runc.tar.gz
 
 WORKDIR /go/src/github.com/opencontainers/runc
 RUN set -ex; \
@@ -48,7 +51,10 @@ RUN set -ex; \
 WORKDIR /go/src/github.com/containerd
 RUN set -ex; \
     mkdir -p containerd; \
-    wget -qO- https://github.com/containerd/containerd/archive/refs/tags/${CONTAINERD_VERSION}.tar.gz | tar -xz --strip-components=1 -C containerd
+    wget -O /tmp/containerd.tar.gz https://github.com/containerd/containerd/archive/refs/tags/${CONTAINERD_VERSION}.tar.gz; \
+    tar -tzf /tmp/containerd.tar.gz >/dev/null; \
+    tar -xzf /tmp/containerd.tar.gz --strip-components=1 -C containerd; \
+    rm -f /tmp/containerd.tar.gz
 
 WORKDIR /go/src/github.com/containerd/containerd
 RUN sed -i 's@arm64 || mipsle@arm64 || loong64 || mipsle@g' vendor/github.com/cilium/ebpf/internal/endian_le.go; \
@@ -62,7 +68,10 @@ RUN sed -i 's@arm64 || mipsle@arm64 || loong64 || mipsle@g' vendor/github.com/ci
 WORKDIR /go/src/github.com/docker
 RUN set -ex; \
     mkdir -p cli; \
-    wget -qO- https://github.com/docker/cli/archive/refs/tags/${DOCKER_VERSION}.tar.gz | tar -xz --strip-components=1 -C cli
+    wget -O /tmp/cli.tar.gz https://github.com/docker/cli/archive/refs/tags/${DOCKER_VERSION}.tar.gz; \
+    tar -tzf /tmp/cli.tar.gz >/dev/null; \
+    tar -xzf /tmp/cli.tar.gz --strip-components=1 -C cli; \
+    rm -f /tmp/cli.tar.gz
 
 WORKDIR /go/src/github.com/docker/cli
 RUN make; \
@@ -71,7 +80,10 @@ RUN make; \
 WORKDIR /go/src/github.com/docker
 RUN set -ex; \
     mkdir -p docker; \
-    wget -qO- https://github.com/moby/moby/archive/refs/tags/docker-${DOCKER_VERSION}.tar.gz | tar -xz --strip-components=1 -C docker
+    wget -O /tmp/moby.tar.gz https://github.com/moby/moby/archive/refs/tags/${DOCKER_VERSION}.tar.gz; \
+    tar -tzf /tmp/moby.tar.gz >/dev/null; \
+    tar -xzf /tmp/moby.tar.gz --strip-components=1 -C docker; \
+    rm -f /tmp/moby.tar.gz
 
 WORKDIR /go/src/github.com/docker/docker
 RUN mkdir bin; \
@@ -85,7 +97,10 @@ RUN mkdir bin; \
 WORKDIR /go/src/github.com/docker
 RUN set -ex; \
     mkdir -p tini; \
-    wget -qO- https://github.com/krallin/tini/archive/refs/tags/${TINI_VERSION}.tar.gz | tar -xz --strip-components=1 -C tini
+    wget -O /tmp/tini.tar.gz https://github.com/krallin/tini/archive/refs/tags/${TINI_VERSION}.tar.gz; \
+    tar -tzf /tmp/tini.tar.gz >/dev/null; \
+    tar -xzf /tmp/tini.tar.gz --strip-components=1 -C tini; \
+    rm -f /tmp/tini.tar.gz
 
 WORKDIR /go/src/github.com/docker/tini
 RUN set -ex; \
