@@ -10,16 +10,35 @@ ARG TINI_VERSION=v0.19.0
 RUN set -ex; \
     ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime; \
     apt-get update; \
-    apt-get install -y wget g++ cmake make pkg-config git file binutils libseccomp-dev libbtrfs-dev libdevmapper-dev; \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y wget g++ make pkg-config patch file binutils libseccomp-dev libbtrfs-dev libdevmapper-dev; \
+    rm -rf /var/lib/apt/lists/*; \
+    printf '%s\n' \
+        '#!/bin/sh' \
+        'case "$1" in' \
+        '  diff|status) exit 0 ;;' \
+        '  describe) echo "unknown"; exit 0 ;;' \
+        '  rev-parse)' \
+        '    case "$2" in' \
+        '      --show-toplevel) pwd ;;' \
+        '      --short) echo "unknown" ;;' \
+        '      *) echo "0000000000000000000000000000000000000000" ;;' \
+        '    esac' \
+        '    exit 0 ;;' \
+        '  log) echo "0000000000000000000000000000000000000000"; exit 0 ;;' \
+        'esac' \
+        'echo "unsupported git command: $*" >&2' \
+        'exit 1' \
+        > /usr/local/bin/git; \
+    chmod +x /usr/local/bin/git
 
 WORKDIR /go/src/github.com/opencontainers
 RUN set -ex; \
-    git clone -b ${RUNC_VERSION} https://github.com/opencontainers/runc --depth=1
+    mkdir -p runc; \
+    wget -qO- https://github.com/opencontainers/runc/archive/refs/tags/${RUNC_VERSION}.tar.gz | tar -xz --strip-components=1 -C runc
 
 WORKDIR /go/src/github.com/opencontainers/runc
 RUN set -ex; \
-    curl -sSL "https://github.com/loong64/containerd-packaging/raw/refs/heads/main/runc.patch" | git apply; \
+    wget -qO- "https://github.com/loong64/containerd-packaging/raw/refs/heads/main/runc.patch" | patch -p1; \
     go get -u github.com/seccomp/libseccomp-golang@v0.10.1-0.20240814065753-28423ed7600d; \
     go mod vendor; \
     sed -i 's@--dirty @@g' Makefile; \
@@ -28,7 +47,8 @@ RUN set -ex; \
 
 WORKDIR /go/src/github.com/containerd
 RUN set -ex; \
-    git clone -b ${CONTAINERD_VERSION} https://github.com/containerd/containerd --depth=1
+    mkdir -p containerd; \
+    wget -qO- https://github.com/containerd/containerd/archive/refs/tags/${CONTAINERD_VERSION}.tar.gz | tar -xz --strip-components=1 -C containerd
 
 WORKDIR /go/src/github.com/containerd/containerd
 RUN sed -i 's@arm64 || mipsle@arm64 || loong64 || mipsle@g' vendor/github.com/cilium/ebpf/internal/endian_le.go; \
@@ -41,7 +61,8 @@ RUN sed -i 's@arm64 || mipsle@arm64 || loong64 || mipsle@g' vendor/github.com/ci
 
 WORKDIR /go/src/github.com/docker
 RUN set -ex; \
-    git clone -b ${DOCKER_VERSION} https://github.com/docker/cli --depth=1
+    mkdir -p cli; \
+    wget -qO- https://github.com/docker/cli/archive/refs/tags/${DOCKER_VERSION}.tar.gz | tar -xz --strip-components=1 -C cli
 
 WORKDIR /go/src/github.com/docker/cli
 RUN make; \
@@ -49,7 +70,8 @@ RUN make; \
 
 WORKDIR /go/src/github.com/docker
 RUN set -ex; \
-    git clone -b docker-${DOCKER_VERSION} https://github.com/moby/moby docker --depth=1
+    mkdir -p docker; \
+    wget -qO- https://github.com/moby/moby/archive/refs/tags/docker-${DOCKER_VERSION}.tar.gz | tar -xz --strip-components=1 -C docker
 
 WORKDIR /go/src/github.com/docker/docker
 RUN mkdir bin; \
@@ -62,11 +84,15 @@ RUN mkdir bin; \
 
 WORKDIR /go/src/github.com/docker
 RUN set -ex; \
-    git clone -b ${TINI_VERSION} https://github.com/krallin/tini --depth=1
+    mkdir -p tini; \
+    wget -qO- https://github.com/krallin/tini/archive/refs/tags/${TINI_VERSION}.tar.gz | tar -xz --strip-components=1 -C tini
 
 WORKDIR /go/src/github.com/docker/tini
-RUN cmake .; \
-    make tini-static; \
+RUN set -ex; \
+    tini_version="${TINI_VERSION#v}"; \
+    printf '#define TINI_VERSION "%s"\n#define TINI_GIT ""\n#define TINI_MINIMAL 0\n' "${tini_version}" > src/tiniConfig.h; \
+    printf 'static const char LICENSE[] = "";\nstatic const unsigned int LICENSE_len = 0;\n' > src/tiniLicense.h; \
+    gcc -static -Os -s -DPR_SET_CHILD_SUBREAPER=36 -DPR_GET_CHILD_SUBREAPER=37 -o tini-static src/tini.c; \
     ./tini-static --version
 
 WORKDIR /opt/docker
