@@ -62,3 +62,7 @@ RUN set -eux; \
     } > build-info.txt; \
     sha256sum hello-purego hello-netgo build-info.txt > sha256sums.txt; \
     tar -czf /go-toolchain-probe-loong64.tar.gz hello-purego hello-netgo build-info.txt sha256sums.txt
+
+FROM scratch AS artifact
+
+COPY --from=builder /go-toolchain-probe-loong64.tar.gz /
