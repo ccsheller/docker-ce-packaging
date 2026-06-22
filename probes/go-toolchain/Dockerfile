@@ -1,6 +1,7 @@
 ARG GO_VERSION=1.24.8
 
 FROM ghcr.io/loong64/golang:${GO_VERSION}-trixie AS builder
+ARG GO_VERSION=1.24.8
 
 ARG DEBUG=0
 
