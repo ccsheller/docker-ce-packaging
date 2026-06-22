@@ -43,7 +43,7 @@ RUN set -eux; \
         echo 'docker-compose is not fully static'; \
         exit 1; \
     fi; \
-    md5sum /out/docker-compose-linux-loong64-${version} > /out/docker-compose-linux-loong64-${version}.md5
+    cd /out; md5sum docker-compose-linux-loong64-${version} > docker-compose-linux-loong64-${version}.md5
 
 FROM scratch AS artifact
 COPY --from=builder /out/ /
