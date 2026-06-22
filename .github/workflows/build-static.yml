@@ -41,6 +41,7 @@ jobs:
             --build-arg RUNC_VERSION=v1.3.0 \
             --build-arg CONTAINERD_VERSION=v1.7.28 \
             --build-arg DOCKER_VERSION=${{ inputs.docker_version }} \
+            --build-arg DOCKER_GITCOMMIT=f8215cc266744ef195a50a70d427c345da2acdbb \
             --build-arg TINI_VERSION=v0.19.0 \
             --output type=local,dest=dist \
             -f binaries/Dockerfile \

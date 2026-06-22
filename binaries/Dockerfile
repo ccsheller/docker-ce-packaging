@@ -5,6 +5,7 @@ FROM ghcr.io/loong64/golang:${GO_VERSION}-trixie AS builder
 ARG RUNC_VERSION=v1.3.0
 ARG CONTAINERD_VERSION=v1.7.28
 ARG DOCKER_VERSION=v28.5.1
+ARG DOCKER_GITCOMMIT=f8215cc266744ef195a50a70d427c345da2acdbb
 ARG TINI_VERSION=v0.19.0
 
 RUN set -ex; \
@@ -86,11 +87,12 @@ RUN set -ex; \
     rm -f /tmp/moby.tar.gz
 
 WORKDIR /go/src/github.com/docker/docker
-RUN mkdir bin; \
-    VERSION=${DOCKER_VERSION#*v} ./hack/make.sh; \
+RUN set -ex; \
+    mkdir bin; \
+    VERSION=${DOCKER_VERSION#*v} DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT} ./hack/make.sh; \
     ./bundles/binary-daemon/dockerd -v; \
     cp -rf bundles/binary-daemon bin/; \
-    VERSION=${DOCKER_VERSION#*v} ./hack/make.sh binary-proxy; \
+    VERSION=${DOCKER_VERSION#*v} DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT} ./hack/make.sh binary-proxy; \
     ./bundles/binary-proxy/docker-proxy --version; \
     cp -rf bundles/binary-proxy bin/
 
