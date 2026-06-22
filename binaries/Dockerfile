@@ -89,7 +89,7 @@ RUN set -ex; \
 WORKDIR /go/src/github.com/docker/docker
 RUN set -ex; \
     mkdir bin; \
-    VERSION=${DOCKER_VERSION#*v} DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT} ./hack/make.sh; \
+    VERSION=${DOCKER_VERSION#*v} DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT} ./hack/make.sh binary-daemon; \
     ./bundles/binary-daemon/dockerd -v; \
     cp -rf bundles/binary-daemon bin/; \
     VERSION=${DOCKER_VERSION#*v} DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT} ./hack/make.sh binary-proxy; \
