@@ -1,16 +1,16 @@
-ARG GO_VERSION=1.23.4
+ARG GO_VERSION=1.24.8
 
 FROM ghcr.io/loong64/golang:${GO_VERSION}-trixie AS builder
 
-ARG RUNC_VERSION=v1.2.2
-ARG CONTAINERD_VERSION=v1.7.24
-ARG DOCKER_VERSION=v27.4.0
+ARG RUNC_VERSION=v1.3.0
+ARG CONTAINERD_VERSION=v1.7.28
+ARG DOCKER_VERSION=v28.5.1
 ARG TINI_VERSION=v0.19.0
 
 RUN set -ex; \
     ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime; \
     apt-get update; \
-    apt-get install -y wget g++ cmake make pkg-config git libseccomp-dev libbtrfs-dev libdevmapper-dev; \
+    apt-get install -y wget g++ cmake make pkg-config git file binutils libseccomp-dev libbtrfs-dev libdevmapper-dev; \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /go/src/github.com/opencontainers
@@ -83,20 +83,24 @@ RUN set -ex; \
 WORKDIR /opt
 RUN set -ex; \
     chmod +x docker/*; \
+    for f in docker/*; do \
+        echo "== ${f} =="; \
+        file "${f}"; \
+        if readelf -l "${f}" | grep -q 'Requesting program interpreter'; then \
+            echo "${f} has a dynamic loader"; \
+            exit 1; \
+        fi; \
+        if ! ldd "${f}" 2>&1 | grep -Eq 'not a dynamic executable|不是动态可执行文件'; then \
+            ldd "${f}" || true; \
+            echo "${f} is not fully static"; \
+            exit 1; \
+        fi; \
+    done; \
     tar -czf docker-${DOCKER_VERSION#*v}.tgz docker; \
     echo $(md5sum docker-${DOCKER_VERSION#*v}.tgz) > docker-${DOCKER_VERSION#*v}.tgz.md5; \
     rm -rf docker
 
-FROM ghcr.io/loong64/debian:trixie-slim
-ARG DOCKER_VERSION=v27.0.1
+FROM scratch AS artifact
 
-COPY --from=builder /opt /opt
-WORKDIR /opt
-
-RUN set -ex; \
-    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime; \
-    cat docker-${DOCKER_VERSION#*v}.tgz.md5
-
-VOLUME /dist
-
-CMD cp -f docker-* /dist/
+COPY --from=builder /opt/docker-*.tgz /
+COPY --from=builder /opt/docker-*.tgz.md5 /

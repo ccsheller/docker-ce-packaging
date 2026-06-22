@@ -1,0 +1,94 @@
+name: Build Static Docker
+
+on:
+  workflow_dispatch:
+    inputs:
+      docker_version:
+        description: Docker version tag to build
+        required: true
+        default: v28.5.1
+      upload_release:
+        description: Upload artifacts to a GitHub release with the same tag
+        required: true
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+        default: 'false'
+
+permissions:
+  contents: write
+
+jobs:
+  build-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: docker/setup-qemu-action@v4
+        with:
+          platforms: loong64
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build static loong64 tarball
+        run: |
+          mkdir -p dist
+          docker buildx build \
+            --platform linux/loong64 \
+            --target artifact \
+            --build-arg GO_VERSION=1.24.8 \
+            --build-arg RUNC_VERSION=v1.3.0 \
+            --build-arg CONTAINERD_VERSION=v1.7.28 \
+            --build-arg DOCKER_VERSION=${{ inputs.docker_version }} \
+            --build-arg TINI_VERSION=v0.19.0 \
+            --output type=local,dest=dist \
+            -f binaries/Dockerfile \
+            .
+
+      - name: Validate artifact layout
+        run: |
+          set -eux
+          version="${{ inputs.docker_version }}"
+          version="${version#v}"
+          test -f "dist/docker-${version}.tgz"
+          test -f "dist/docker-${version}.tgz.md5"
+          cd dist
+          md5sum -c "docker-${version}.tgz.md5"
+          mkdir check
+          tar xzf "docker-${version}.tgz" -C check
+          test -x check/docker/docker
+          test -x check/docker/dockerd
+          test -x check/docker/containerd
+          test -x check/docker/containerd-shim-runc-v2
+          test -x check/docker/ctr
+          test -x check/docker/runc
+          test -x check/docker/docker-init
+          test -x check/docker/docker-proxy
+          for f in check/docker/*; do
+            echo "== ${f} =="
+            file "${f}"
+            if readelf -l "${f}" | grep -q 'Requesting program interpreter'; then
+              echo "${f} has a dynamic loader"
+              exit 1
+            fi
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docker-static-loong64-${{ inputs.docker_version }}
+          path: |
+            dist/docker-*.tgz
+            dist/docker-*.tgz.md5
+          if-no-files-found: error
+
+      - name: Upload release assets
+        if: inputs.upload_release == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          if ! gh release view "${{ inputs.docker_version }}" >/dev/null 2>&1; then
+            gh release create "${{ inputs.docker_version }}" --title "${{ inputs.docker_version }}" --notes "Static loong64 Docker binaries."
+          fi
+          gh release upload "${{ inputs.docker_version }}" dist/docker-*.tgz dist/docker-*.tgz.md5 --clobber
